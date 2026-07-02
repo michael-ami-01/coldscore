@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ColdScore — Rate My Cold Email</title>
+    <meta name="description" content="Free AI-powered cold email grader. Paste your email, get an instant grade with actionable feedback. No signup required.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0b;
+            --surface: #141416;
+            --surface-2: #1c1c20;
+            --border: #2a2a30;
+            --text: #e8e8ed;
+            --text-muted: #8888a0;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --grade-a: #22c55e;
+            --grade-b: #84cc16;
+            --grade-c: #eab308;
+            --grade-d: #f97316;
+            --grade-f: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .noise {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-top: 2rem;
+        }
+
+        .logo {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, var(--text) 0%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            line-height: 1.5;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        /* Input area */
+        .input-section {
+            margin-bottom: 2rem;
+        }
+
+        .input-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .email-input {
+            width: 100%;
+            min-height: 200px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .email-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .email-input::placeholder {
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        .char-count {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Context input */
+        .context-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .context-input {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+        }
+
+        .context-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .context-input::placeholder {
+            color: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* Button */
+        .rate-btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rate-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .rate-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .rate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .rate-btn.loading {
+            color: transparent;
+        }
+
+        .rate-btn.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 20px; height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Results */
+        .results {
+            display: none;
+            margin-top: 2rem;
+            animation: slideUp 0.5s ease;
+        }
+
+        .results.visible { display: block; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Score card */
+        .score-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .score-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--grade-color, var(--accent));
+        }
+
+        .grade-display {
+            font-size: 6rem;
+            font-weight: 900;
+            line-height: 1;
+            margin: 0.5rem 0;
+            color: var(--grade-color, var(--text));
+            text-shadow: 0 0 40px var(--grade-glow, transparent);
+        }
+
+        .grade-label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .score-bar-container {
+            background: var(--surface-2);
+            border-radius: 8px;
+            height: 8px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+        }
+
+        .score-bar {
+            height: 100%;
+            border-radius: 8px;
+            background: var(--grade-color, var(--accent));
+            transition: width 1s ease;
+        }
+
+        .score-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* Feedback sections */
+        .feedback {
+            margin-top: 1.5rem;
+        }
+
+        .feedback-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .feedback-section h3 {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feedback-section h3 .icon { font-size: 1rem; }
+
+        .feedback-section p, .feedback-section li {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .feedback-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feedback-section li {
+            padding: 0.4rem 0;
+            padding-left: 1.2rem;
+            position: relative;
+        }
+
+        .feedback-section li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+        }
+
+        .strength { border-left: 3px solid var(--grade-a); }
+        .weakness { border-left: 3px solid var(--grade-f); }
+        .suggestion { border-left: 3px solid var(--accent); }
+
+        /* Share button */
+        .share-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .share-btn {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .share-btn:hover {
+            background: var(--border);
+        }
+
+        .try-again-btn {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        /* API Key section */
+        .api-section {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .api-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+        }
+
+        .api-toggle:hover { color: var(--text); }
+
+        .api-fields {
+            display: none;
+        }
+
+        .api-fields.visible { display: block; }
+
+        .api-key-input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .api-key-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .api-note {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 4rem;
+            padding: 2rem 0;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover { text-decoration: underline; }
+
+        /* Uses remaining */
+        .uses-remaining {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Error */
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--grade-f);
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .error-msg.visible { display: block; }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem; }
+            .grade-display { font-size: 4rem; }
+            .context-row { flex-direction: column; }
+            .share-row { flex-direction: column; }
+        }
+
+        /* Rewrite section */
+        .rewrite-section {
+            background: var(--surface);
+            border: 1px solid var(--accent);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .rewrite-section h3 {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+            color: var(--accent);
+        }
+
+        .rewrite-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre-wrap;
+        }
+
+        .copy-btn {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="noise"></div>
+    <div class="container">
+        <header class="header">
+            <div class="logo">ColdScore</div>
+            <h1>Rate My Cold Email</h1>
+            <p class="subtitle">Paste your cold email. Get an instant AI grade with line-by-line feedback and a rewrite. Free, no signup.</p>
+        </header>
+
+        <section class="input-section">
+            <label class="input-label">Your cold email</label>
+            <textarea class="email-input" id="emailInput" placeholder="Hey {{first_name}},
+
+I noticed your company just raised a Series A — congrats! 
+
+I'm reaching out because we help startups like yours automate their outbound sales pipeline...
+
+Paste your full cold email here, including subject line if you have one."></textarea>
+            <div class="char-count" id="charCount">0 characters</div>
+
+            <div class="context-row">
+                <input type="text" class="context-input" id="targetRole" placeholder="Target role (e.g. VP Sales, CTO)">
+                <input type="text" class="context-input" id="industry" placeholder="Industry (e.g. SaaS, fintech)">
+            </div>
+
+            <button class="rate-btn" id="rateBtn" onclick="rateEmail()">
+                Rate My Email →
+            </button>
+
+            <div class="uses-remaining" id="usesRemaining"></div>
+            <div class="error-msg" id="errorMsg"></div>
+        </section>
+
+        <section class="results" id="results">
+            <div class="score-card" id="scoreCard">
+                <div class="grade-label" id="gradeLabel">Overall Grade</div>
+                <div class="grade-display" id="gradeDisplay">—</div>
+                <div class="score-bar-container">
+                    <div class="score-bar" id="scoreBar" style="width: 0%"></div>
+                </div>
+                <div class="score-number" id="scoreNumber">— / 100</div>
+            </div>
+
+            <div class="feedback" id="feedbackContainer"></div>
+
+            <div class="share-row">
+                <button class="share-btn" onclick="shareResult()">📋 Copy Score Card</button>
+                <button class="share-btn" onclick="shareTwitter()">𝕏 Share on X</button>
+                <button class="try-again-btn" onclick="tryAgain()">Rate Another Email</button>
+            </div>
+        </section>
+
+        <section class="api-section">
+            <div class="api-toggle" onclick="toggleApiFields()">
+                ⚙️ <span>Use your own API key (unlimited ratings)</span>
+            </div>
+            <div class="api-fields" id="apiFields">
+                <select class="context-input" id="providerSelect" style="width: 100%; margin-bottom: 0.5rem;">
+                    <option value="deepseek">DeepSeek (cheapest — ~$0.0003/rating)</option>
+                    <option value="openai">OpenAI (GPT-4o-mini)</option>
+                    <option value="anthropic">Anthropic (Claude Haiku)</option>
+                </select>
+                <input type="password" class="api-key-input" id="apiKeyInput" placeholder="sk-... or your API key">
+                <p class="api-note">Your key stays in your browser. Never sent anywhere except the AI provider.</p>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <p>Built by <a href="https://x.com/maboroshi_ai" target="_blank">Michael Zhang's Self-Improving AI</a></p>
+            <p style="margin-top: 0.5rem;">No data stored. No signup. No tracking. Your email never leaves your browser (except to the AI for grading).</p>
+        </footer>
+    </div>
+
+    <script>
+    // Config
+    const PROXY_URL = ''; // Set when Cloudflare Worker is deployed
+    const MAX_FREE_USES = 5;
+    const STORAGE_KEY = 'coldscore_uses';
+
+    // State
+    let currentResult = null;
+
+    // Track character count
+    const emailInput = document.getElementById('emailInput');
+    const charCount = document.getElementById('charCount');
+    emailInput.addEventListener('input', () => {
+        charCount.textContent = emailInput.value.length + ' characters';
+    });
+
+    // Update uses display
+    function updateUsesDisplay() {
+        const uses = parseInt(localStorage.getItem(STORAGE_KEY) || '0');
+        const remaining = MAX_FREE_USES - uses;
+        const el = document.getElementById('usesRemaining');
+        if (remaining <= 2 && remaining > 0) {
+            el.textContent = remaining + ' free rating' + (remaining === 1 ? '' : 's') + ' remaining';
+        } else if (remaining <= 0) {
+            el.textContent = 'Free ratings used up — add your own API key below for unlimited use';
+        } else {
+            el.textContent = '';
+        }
+    }
+    updateUsesDisplay();
+
+    function toggleApiFields() {
+        document.getElementById('apiFields').classList.toggle('visible');
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.classList.add('visible');
+        setTimeout(() => el.classList.remove('visible'), 5000);
+    }
+
+    function getGradeColor(grade) {
+        const colors = { 'A+': '#22c55e', 'A': '#22c55e', 'A-': '#22c55e',
+                         'B+': '#84cc16', 'B': '#84cc16', 'B-': '#84cc16',
+                         'C+': '#eab308', 'C': '#eab308', 'C-': '#eab308',
+                         'D+': '#f97316', 'D': '#f97316', 'D-': '#f97316',
+                         'F': '#ef4444' };
+        return colors[grade] || '#6366f1';
+    }
+
+    function getGradeScore(grade) {
+        const scores = { 'A+': 98, 'A': 93, 'A-': 90, 'B+': 87, 'B': 83, 'B-': 80,
+                         'C+': 77, 'C': 73, 'C-': 70, 'D+': 67, 'D': 63, 'D-': 60, 'F': 40 };
+        return scores[grade] || 50;
+    }
+
+    function buildPrompt(email, targetRole, industry) {
+        return `You are ColdScore, an expert cold email analyzer. Grade this cold email and provide detailed feedback.
+
+TARGET ROLE: ${targetRole || 'Not specified'}
+INDUSTRY: ${industry || 'Not specified'}
+
+COLD EMAIL:
+"""
+${email}
+"""
+
+Respond in this EXACT JSON format (no markdown, no code fences, just raw JSON):
+{
+    "grade": "B+",
+    "summary": "One sentence overall assessment",
+    "strengths": ["strength 1", "strength 2", "strength 3"],
+    "weaknesses": ["weakness 1", "weakness 2", "weakness 3"],
+    "suggestions": ["specific actionable suggestion 1", "specific actionable suggestion 2", "specific actionable suggestion 3"],
+    "subject_line_grade": "A-",
+    "subject_line_feedback": "Brief feedback on subject line, or 'No subject line provided'",
+    "personalization_score": "7/10",
+    "cta_score": "6/10",
+    "brevity_score": "8/10",
+    "rewrite": "Your complete rewritten version of the email that would score an A+"
+}
+
+Grading criteria:
+- A+/A/A-: Exceptional. Highly personalized, clear value prop, strong CTA, concise, would get replies
+- B+/B/B-: Good but has clear areas for improvement
+- C+/C/C-: Average. Generic, unclear value, weak personalization
+- D+/D/D-: Poor. Spam-like qualities, too long, no personalization
+- F: Would get marked as spam
+
+Be brutally honest. Most cold emails are C-grade or below. Don't grade on a curve.`;
+    }
+
+    async function callLLM(prompt) {
+        const apiKey = document.getElementById('apiKeyInput').value.trim();
+        const provider = document.getElementById('providerSelect').value;
+
+        // If user has their own key, use it directly
+        if (apiKey) {
+            return await callDirectAPI(prompt, provider, apiKey);
+        }
+
+        // Check free uses
+        const uses = parseInt(localStorage.getItem(STORAGE_KEY) || '0');
+        if (uses >= MAX_FREE_USES) {
+            throw new Error('Free ratings used up! Add your own API key below for unlimited ratings. DeepSeek keys cost ~$0.0003 per rating.');
+        }
+
+        // Use proxy for free tier
+        if (PROXY_URL) {
+            const resp = await fetch(PROXY_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            if (!resp.ok) throw new Error('Service temporarily unavailable. Try adding your own API key.');
+            localStorage.setItem(STORAGE_KEY, String(uses + 1));
+            return await resp.json();
+        }
+
+        // No proxy configured — BYOK only mode
+        throw new Error('This tool requires an API key to work. Add your DeepSeek, OpenAI, or Anthropic key below — it stays in your browser and costs ~$0.0003 per rating.');
+    }
+
+    async function callDirectAPI(prompt, provider, apiKey) {
+        let url, headers, body;
+
+        if (provider === 'deepseek') {
+            url = 'https://api.deepseek.com/chat/completions';
+            headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey };
+            body = JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.3,
+                max_tokens: 2000
+            });
+        } else if (provider === 'openai') {
+            url = 'https://api.openai.com/v1/chat/completions';
+            headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey };
+            body = JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.3,
+                max_tokens: 2000
+            });
+        } else if (provider === 'anthropic') {
+            url = 'https://api.anthropic.com/v1/messages';
+            headers = {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            };
+            body = JSON.stringify({
+                model: 'claude-3-5-haiku-20241022',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.3,
+                max_tokens: 2000
+            });
+        }
+
+        const resp = await fetch(url, { method: 'POST', headers, body });
+        if (!resp.ok) {
+            const err = await resp.text();
+            throw new Error('API error: ' + resp.status + '. Check your API key.');
+        }
+
+        const data = await resp.json();
+        let content;
+        if (provider === 'anthropic') {
+            content = data.content[0].text;
+        } else {
+            content = data.choices[0].message.content;
+        }
+
+        // Parse JSON from response
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Invalid response from AI. Try again.');
+        return JSON.parse(jsonMatch[0]);
+    }
+
+    async function rateEmail() {
+        const email = emailInput.value.trim();
+        if (!email) { showError('Paste a cold email first!'); return; }
+        if (email.length < 30) { showError('That seems too short for a cold email. Paste the full thing.'); return; }
+
+        const btn = document.getElementById('rateBtn');
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = 'Analyzing...';
+        document.getElementById('errorMsg').classList.remove('visible');
+
+        try {
+            const targetRole = document.getElementById('targetRole').value.trim();
+            const industry = document.getElementById('industry').value.trim();
+            const prompt = buildPrompt(email, targetRole, industry);
+            const result = await callLLM(prompt);
+
+            currentResult = result;
+            displayResult(result);
+            updateUsesDisplay();
+        } catch (err) {
+            showError(err.message);
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            btn.textContent = 'Rate My Email →';
+        }
+    }
+
+    function displayResult(r) {
+        const color = getGradeColor(r.grade);
+        const score = getGradeScore(r.grade);
+
+        // Update score card
+        const card = document.getElementById('scoreCard');
+        card.style.setProperty('--grade-color', color);
+        card.style.setProperty('--grade-glow', color + '66');
+
+        document.getElementById('gradeDisplay').textContent = r.grade;
+        document.getElementById('gradeDisplay').style.color = color;
+        document.getElementById('gradeLabel').textContent = r.summary;
+
+        setTimeout(() => {
+            document.getElementById('scoreBar').style.width = score + '%';
+            document.getElementById('scoreBar').style.background = color;
+        }, 100);
+        document.getElementById('scoreNumber').textContent = score + ' / 100';
+
+        // Build feedback sections
+        const container = document.getElementById('feedbackContainer');
+        container.innerHTML = '';
+
+        // Sub-scores
+        const subScores = `
+            <div class="feedback-section">
+                <h3><span class="icon">📊</span> Breakdown</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div style="color:var(--text-muted);font-size:0.85rem;">Subject Line: <strong style="color:var(--text)">${r.subject_line_grade || 'N/A'}</strong></div>
+                    <div style="color:var(--text-muted);font-size:0.85rem;">Personalization: <strong style="color:var(--text)">${r.personalization_score || 'N/A'}</strong></div>
+                    <div style="color:var(--text-muted);font-size:0.85rem;">Call to Action: <strong style="color:var(--text)">${r.cta_score || 'N/A'}</strong></div>
+                    <div style="color:var(--text-muted);font-size:0.85rem;">Brevity: <strong style="color:var(--text)">${r.brevity_score || 'N/A'}</strong></div>
+                </div>
+                ${r.subject_line_feedback ? '<p style="margin-top:0.75rem;font-size:0.8rem;color:var(--text-muted)">📧 ' + r.subject_line_feedback + '</p>' : ''}
+            </div>`;
+
+        // Strengths
+        const strengths = r.strengths && r.strengths.length ? `
+            <div class="feedback-section strength">
+                <h3><span class="icon">💪</span> Strengths</h3>
+                <ul>${r.strengths.map(s => '<li>' + s + '</li>').join('')}</ul>
+            </div>` : '';
+
+        // Weaknesses
+        const weaknesses = r.weaknesses && r.weaknesses.length ? `
+            <div class="feedback-section weakness">
+                <h3><span class="icon">🎯</span> Weaknesses</h3>
+                <ul>${r.weaknesses.map(w => '<li>' + w + '</li>').join('')}</ul>
+            </div>` : '';
+
+        // Suggestions
+        const suggestions = r.suggestions && r.suggestions.length ? `
+            <div class="feedback-section suggestion">
+                <h3><span class="icon">💡</span> Suggestions</h3>
+                <ul>${r.suggestions.map(s => '<li>' + s + '</li>').join('')}</ul>
+            </div>` : '';
+
+        // Rewrite
+        const rewrite = r.rewrite ? `
+            <div class="rewrite-section">
+                <h3>✨ AI Rewrite (A+ Version)</h3>
+                <div class="rewrite-text">${r.rewrite}</div>
+                <button class="copy-btn" onclick="copyRewrite()">Copy Rewrite</button>
+            </div>` : '';
+
+        container.innerHTML = subScores + strengths + weaknesses + suggestions + rewrite;
+
+        // Show results
+        document.getElementById('results').classList.add('visible');
+        document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function copyRewrite() {
+        if (!currentResult || !currentResult.rewrite) return;
+        navigator.clipboard.writeText(currentResult.rewrite).then(() => {
+            const btn = event.target;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy Rewrite', 2000);
+        });
+    }
+
+    function shareResult() {
+        if (!currentResult) return;
+        const text = `🎯 ColdScore: My cold email got a ${currentResult.grade} (${getGradeScore(currentResult.grade)}/100)\n\n${currentResult.summary}\n\nStrengths: ${currentResult.strengths?.join(', ')}\nWeaknesses: ${currentResult.weaknesses?.join(', ')}\n\nRate yours free → ${window.location.href}`;
+        navigator.clipboard.writeText(text).then(() => {
+            const btns = document.querySelectorAll('.share-btn');
+            btns[0].textContent = '✅ Copied!';
+            setTimeout(() => btns[0].textContent = '📋 Copy Score Card', 2000);
+        });
+    }
+
+    function shareTwitter() {
+        if (!currentResult) return;
+        const text = encodeURIComponent(`My cold email got a ${currentResult.grade} on ColdScore 🎯\n\n${currentResult.summary}\n\nRate yours free →`);
+        const url = encodeURIComponent(window.location.href);
+        window.open(`https://x.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+    }
+
+    function tryAgain() {
+        document.getElementById('results').classList.remove('visible');
+        emailInput.value = '';
+        emailInput.focus();
+        charCount.textContent = '0 characters';
+        currentResult = null;
+    }
+    </script>
+</body>
+</html>
